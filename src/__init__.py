@@ -1,1 +1,0 @@
-# QuantStream Analytics Platform
