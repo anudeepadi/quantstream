@@ -66,8 +66,8 @@ class RestAPIConnector(BaseConnector):
     """Base REST API connector with rate limiting and retry logic."""
     
     def __init__(self, config: APIConnectorConfig):
-        super().__init__(config, self._get_data_source())
         self.api_config = config
+        super().__init__(config, self._get_data_source())
         self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limiter = None
         self.retry_handler = None
@@ -78,7 +78,7 @@ class RestAPIConnector(BaseConnector):
             requests_per_minute=config.requests_per_minute,
             requests_per_second=config.requests_per_second,
             strategy=RateLimitStrategy.TOKEN_BUCKET,
-            burst_size=min(10, config.requests_per_minute // 6)  # Allow short bursts
+            burst_size=max(1, min(10, config.requests_per_minute // 6))  # Allow short bursts
         )
         self.rate_limiter = RateLimiterFactory.create_rate_limiter(
             rate_limit_config, 

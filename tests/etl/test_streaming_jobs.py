@@ -5,8 +5,12 @@ Comprehensive tests for streaming ETL jobs.
 import pytest
 import tempfile
 import shutil
+import os
+import sys
+from datetime import datetime
 from unittest.mock import Mock, patch, MagicMock
 from pyspark.sql import SparkSession
+from delta import configure_spark_with_delta_pip
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType, TimestampType
 from pyspark.sql.functions import lit, current_timestamp
 import pandas as pd
@@ -18,15 +22,21 @@ from src.etl.streaming.technical_indicators import TechnicalIndicatorsJob
 from src.etl.streaming.anomaly_detection import AnomalyDetectionJob
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def spark_session():
     """Create a Spark session for testing."""
-    spark = (SparkSession.builder
+    os.environ["PYSPARK_PYTHON"] = sys.executable
+    builder = (SparkSession.builder
              .appName("ETL-Tests")
              .master("local[2]")
+             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+             .config("spark.sql.shuffle.partitions", "2")
+             .config("spark.driver.host", "127.0.0.1")
              .config("spark.sql.adaptive.enabled", "false")
              .config("spark.sql.adaptive.coalescePartitions.enabled", "false")
-             .getOrCreate())
+             )
+    spark = configure_spark_with_delta_pip(builder).getOrCreate()
     
     yield spark
     spark.stop()
@@ -113,8 +123,8 @@ def sample_kafka_data(spark_session):
     trade_json = '{"symbol": "AAPL", "timestamp": "2024-01-01 10:00:01", "price": "150.02", "size": "100", "data_source": "test"}'
     
     data = [
-        ("market_data_quotes", "0", "100", "2024-01-01 10:00:00", "AAPL", quote_json),
-        ("market_data_trades", "0", "101", "2024-01-01 10:00:01", "AAPL", trade_json)
+        ("market_data_quotes", "0", "100", datetime(2024, 1, 1, 10, 0, 0), "AAPL", quote_json),
+        ("market_data_trades", "0", "101", datetime(2024, 1, 1, 10, 0, 1), "AAPL", trade_json)
     ]
     
     return spark_session.createDataFrame(data, schema)
@@ -133,9 +143,9 @@ def sample_silver_data(spark_session):
     ])
     
     data = [
-        ("AAPL", "2024-01-01 10:00:00", 150.00, 1000, "true", "market_data_trades"),
-        ("AAPL", "2024-01-01 10:01:00", 150.50, 1500, "true", "market_data_trades"),
-        ("AAPL", "2024-01-01 10:02:00", 149.75, 800, "true", "market_data_trades")
+        ("AAPL", datetime.fromisoformat("2024-01-01 10:00:00"), 150.00, 1000, "true", "market_data_trades"),
+        ("AAPL", datetime.fromisoformat("2024-01-01 10:01:00"), 150.50, 1500, "true", "market_data_trades"),
+        ("AAPL", datetime.fromisoformat("2024-01-01 10:02:00"), 149.75, 800, "true", "market_data_trades")
     ]
     
     return spark_session.createDataFrame(data, schema)
@@ -158,8 +168,8 @@ def sample_ohlcv_data(spark_session):
     ])
     
     data = [
-        ("AAPL", "2024-01-01 10:00:00", "2024-01-01 10:01:00", "1 minute", 150.00, 150.50, 149.75, 150.25, 5000, "ohlcv_bars"),
-        ("AAPL", "2024-01-01 10:01:00", "2024-01-01 10:02:00", "1 minute", 150.25, 150.75, 150.00, 150.60, 4500, "ohlcv_bars")
+        ("AAPL", datetime.fromisoformat("2024-01-01 10:00:00"), datetime.fromisoformat("2024-01-01 10:01:00"), "1 minute", 150.00, 150.50, 149.75, 150.25, 5000, "ohlcv_bars"),
+        ("AAPL", datetime.fromisoformat("2024-01-01 10:01:00"), datetime.fromisoformat("2024-01-01 10:02:00"), "1 minute", 150.25, 150.75, 150.00, 150.60, 4500, "ohlcv_bars")
     ]
     
     return spark_session.createDataFrame(data, schema)
@@ -197,6 +207,11 @@ class TestBronzeLayerJob:
         # Check data quality flags
         assert "is_valid_symbol" in result_df.columns
         assert "quality_score" in result_df.columns
+        rows = {row.topic: row for row in result_df.collect()}
+        assert rows["market_data_quotes"].symbol == "AAPL"
+        assert rows["market_data_quotes"].bid_price == "150.00"
+        assert rows["market_data_trades"].symbol == "AAPL"
+        assert rows["market_data_trades"].price == "150.02"
         
     def test_bronze_sink_options(self, sample_config):
         """Test Bronze layer sink configuration."""
@@ -225,18 +240,18 @@ class TestSilverLayerJob:
         job = SilverLayerJob(sample_config)
         
         # Test the cleaning method directly
-        cleaned_df = job._clean_and_standardize(sample_kafka_data)
+        bronze_df = BronzeLayerJob(sample_config).transform_data(sample_kafka_data)
+        cleaned_df = job._clean_and_standardize(bronze_df)
         
         # Should have standardized symbol column
-        if "symbol" in sample_kafka_data.columns:
-            assert "symbol_standardized" in cleaned_df.columns or "symbol_clean" in cleaned_df.columns
+        assert {row.symbol_clean for row in cleaned_df.select("symbol_clean").collect()} == {"AAPL"}
             
     def test_silver_data_validation(self, sample_config, sample_kafka_data):
         """Test Silver layer data validation."""
         job = SilverLayerJob(sample_config)
         
         # Add some numeric columns for testing
-        test_df = sample_kafka_data.withColumn("price_clean", lit(150.0)).withColumn("volume_clean", lit(1000))
+        test_df = sample_kafka_data.withColumn("price_decimal", lit(150.0)).withColumn("volume_long", lit(1000))
         
         validated_df = job._validate_data_quality(test_df)
         
@@ -261,7 +276,10 @@ class TestGoldLayerJob:
         job = GoldLayerJob(sample_config)
         
         # Add required columns for OHLCV calculation
-        trade_df = sample_silver_data.filter(sample_silver_data.topic == "market_data_trades")
+        trade_df = (sample_silver_data
+                    .withColumn("price_decimal", sample_silver_data.last_price_decimal)
+                    .withColumn("size_long", sample_silver_data.volume_long)
+                    .filter(sample_silver_data.topic == "market_data_trades"))
         
         if trade_df.count() > 0:
             # Mock the OHLCV calculation

@@ -10,6 +10,7 @@ from .rate_limiter import (
     DistributedRateLimiter, RateLimiterFactory, RateLimitedClient, with_rate_limit
 )
 from .retry_handler import (
+    BackoffFactory, FixedBackoff, ExponentialBackoff, ExponentialJitterBackoff,
     RetryConfig, BackoffStrategy, RetryHandler, CircuitBreaker, CircuitBreakerConfig,
     retry, AsyncRetryDecorator, with_retries, HTTP_RETRY_CONFIG, DATABASE_RETRY_CONFIG,
     API_RETRY_CONFIG
@@ -34,6 +35,7 @@ __all__ = [
     "DistributedRateLimiter", "RateLimiterFactory", "RateLimitedClient", "with_rate_limit",
     
     # Retry handling
+    "BackoffFactory", "FixedBackoff", "ExponentialBackoff", "ExponentialJitterBackoff",
     "RetryConfig", "BackoffStrategy", "RetryHandler", "CircuitBreaker", "CircuitBreakerConfig",
     "retry", "AsyncRetryDecorator", "with_retries", "HTTP_RETRY_CONFIG", "DATABASE_RETRY_CONFIG",
     "API_RETRY_CONFIG",

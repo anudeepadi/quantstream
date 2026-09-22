@@ -6,12 +6,12 @@ import { useAuth } from "@/lib/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Activity, AlertCircle, TrendingUp, BarChart3 } from "lucide-react"
+import { Activity, AlertCircle } from "lucide-react"
 
 const STATS = [
-  { label: "Assets Tracked", value: "2,400+" },
-  { label: "Daily Volume", value: "$1.2B" },
-  { label: "Avg Return", value: "+18.4%" },
+  { label: "Dashboard", value: "Next.js" },
+  { label: "API", value: "FastAPI" },
+  { label: "Project Status", value: "Prototype" },
 ]
 
 export default function LoginPage() {
@@ -59,10 +59,10 @@ export default function LoginPage() {
         <div className="relative space-y-6">
           <div className="space-y-3">
             <h1 className="text-4xl font-bold text-white leading-tight">
-              Real-time analytics<br />for every market.
+              Financial analytics<br />you can explore.
             </h1>
             <p className="text-white/70 text-base leading-relaxed max-w-sm">
-              Monitor portfolios, track performance, and make data-driven decisions with institutional-grade tools.
+              Explore market data, portfolio views, and technical indicators in a development prototype.
             </p>
           </div>
 
@@ -113,7 +113,7 @@ export default function LoginPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold tracking-tight">Sign in</h2>
             <p className="text-sm text-muted-foreground mt-1.5">
-              Enter your credentials to access the dashboard
+              Connect a development backend and sign in to explore the dashboard
             </p>
           </div>
 
@@ -170,7 +170,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Demo credentials:{" "}
+            Local demo credentials:{" "}
             <span className="font-medium text-foreground">admin</span>
             {" / "}
             <span className="font-medium text-foreground">admin123</span>

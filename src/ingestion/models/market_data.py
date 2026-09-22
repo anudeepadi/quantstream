@@ -87,8 +87,8 @@ class Quote:
     timestamp: datetime
     bid_price: Optional[Decimal]
     ask_price: Optional[Decimal]
-    bid_size: Optional[int]
-    ask_size: Optional[int]
+    bid_size: Optional[int] = None
+    ask_size: Optional[int] = None
     metadata: MarketDataMetadata = field(default_factory=MarketDataMetadata)
     
     @property

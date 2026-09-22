@@ -22,18 +22,24 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      - name: Setup Java for Spark tests
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest pytest-asyncio pytest-mock
+        run: python -m pip install -r requirements-test.txt
 
       - name: Run unit tests
         # Tests live in tests/*/unit/ — no @pytest.mark.unit markers used, filter by path instead
         run: >
-          pytest tests/ingestion/unit/ tests/etl/ tests/features/ tests/ml/unit/
+          python -m pytest tests/ingestion/unit/ tests/etl/ tests/features/ tests/ml/unit/
           --ignore=tests/ingestion/integration
           --ignore=tests/ingestion/performance
           --ignore=tests/ml/integration
           --ignore=tests/ml/performance
-          -v -p no:cov
+          -v -o addopts= --asyncio-mode=auto --timeout=90
 
   # ── Frontend lint + type-check + build ─────────────────────────
   test-frontend:
@@ -74,7 +80,7 @@ jobs:
     name: Deploy Backend → Railway Staging
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/development'
+    if: github.ref == 'refs/heads/development' && vars.ENABLE_DEPLOYMENTS == 'true'
 
     steps:
       - name: Checkout
@@ -94,7 +100,7 @@ jobs:
     name: Deploy Frontend → Cloudflare Pages (preview)
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/development'
+    if: github.ref == 'refs/heads/development' && vars.ENABLE_DEPLOYMENTS == 'true'
 
     defaults:
       run:

@@ -280,8 +280,7 @@ class TechnicalIndicatorsJob(BaseStreamingJob):
         # Calculate price changes
         price_change_window = (Window
                              .partitionBy("symbol")
-                             .orderBy("window_start")
-                             .rowsBetween(-1, 0))
+                             .orderBy("window_start"))
         
         rsi_window = (Window
                      .partitionBy("symbol")

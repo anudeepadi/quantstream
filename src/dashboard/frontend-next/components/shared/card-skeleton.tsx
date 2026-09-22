@@ -10,7 +10,7 @@ export function CardSkeleton({ lines = 3 }: { readonly lines?: number }) {
           <div
             key={i}
             className="h-3 rounded bg-muted mb-2"
-            style={{ width: `${70 + Math.random() * 30}%` }}
+            style={{ width: `${[85, 100, 70][i % 3]}%` }}
           />
         ))}
       </CardContent>
@@ -30,7 +30,7 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { readonly rows?: number; 
                 <div
                   key={c}
                   className="h-4 rounded bg-muted flex-1"
-                  style={{ opacity: 0.4 + Math.random() * 0.4 }}
+                  style={{ opacity: 0.4 + ((r + c) % 3) * 0.2 }}
                 />
               ))}
             </div>

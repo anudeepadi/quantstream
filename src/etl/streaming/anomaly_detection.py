@@ -15,7 +15,7 @@ from pyspark.sql.functions import (
     min as spark_min, max as spark_max, stddev, variance,
     abs as spark_abs, sqrt, log, exp, lit, current_timestamp,
     percentile_approx, coalesce, isnan, isnull, desc, asc,
-    row_number, rank, dense_rank, ntile, expr
+    row_number, rank, dense_rank, ntile, expr, greatest
 )
 from pyspark.sql.window import Window
 from pyspark.sql.types import DoubleType, BooleanType, StringType
@@ -246,8 +246,7 @@ class AnomalyDetectionJob(BaseStreamingJob):
         # Window for price change calculation
         price_window = (Window
                        .partitionBy("symbol_clean")
-                       .orderBy("timestamp_parsed")
-                       .rowsBetween(-1, 0))
+                       .orderBy("timestamp_parsed"))
         
         # Calculate price changes
         spike_df = df.withColumn(
@@ -409,7 +408,7 @@ class AnomalyDetectionJob(BaseStreamingJob):
             score_sum / len(score_columns)
         ).withColumn(
             "max_individual_score",
-            spark_max(*[col(c) for c in score_columns])
+            greatest(*[col(c) for c in score_columns]) if len(score_columns) > 1 else col(score_columns[0])
         ).withColumn(
             "anomaly_detection_methods",
             lit(len(score_columns))

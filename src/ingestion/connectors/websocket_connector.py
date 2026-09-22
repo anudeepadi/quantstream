@@ -95,8 +95,8 @@ class BaseWebSocketConnector(BaseConnector):
     """Base WebSocket connector with connection management and reconnection logic."""
     
     def __init__(self, config: WebSocketConnectorConfig):
-        super().__init__(config, self._get_data_source())
         self.ws_config = config
+        super().__init__(config, self._get_data_source())
         self.websocket = None
         self.last_ping = 0
         self.last_pong = 0

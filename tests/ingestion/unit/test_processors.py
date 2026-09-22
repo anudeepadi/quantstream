@@ -7,6 +7,7 @@ import asyncio
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
 from decimal import Decimal
+from dataclasses import replace
 from collections import defaultdict
 import time
 
@@ -42,7 +43,7 @@ class MockProcessor(BaseProcessor):
         if self.modify_data:
             # Modify the data somehow
             if hasattr(data, 'symbol') and hasattr(data.symbol, 'ticker'):
-                data.symbol.ticker = data.symbol.ticker.upper() + "_MODIFIED"
+                data.symbol = replace(data.symbol, ticker=data.symbol.ticker.upper() + "_MODIFIED")
             action = ProcessingAction.MODIFY
         else:
             action = ProcessingAction.PASS
@@ -617,7 +618,7 @@ class TestDeadLetterQueue:
         
         assert dlq.max_size == 100
         assert dlq.size() == 0
-        assert len(dlq.get_metrics()["total_messages"]) >= 0
+        assert dlq.get_metrics()["total_messages"] == 0
     
     def test_dlq_add_message(self):
         """Test adding message to dead letter queue."""

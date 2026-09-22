@@ -173,26 +173,19 @@ class BronzeLayerJob(BaseStreamingJob):
                 hash(col("value")).alias("data_hash")
             )
             
-            # Parse JSON data based on topic
-            df_parsed = df_with_metadata
-            
-            for topic, schema in self.schemas.items():
-                topic_filter = col("topic") == topic
-                parsed_col = from_json(col("raw_data"), schema).alias("parsed_data")
-                
-                df_parsed = df_parsed.withColumn(
-                    "parsed_data",
-                    when(topic_filter, parsed_col).otherwise(col("parsed_data"))
-                )
-                
-                # Extract parsed fields for this topic
-                if topic in self.schemas:
-                    for field in schema.fields:
-                        df_parsed = df_parsed.withColumn(
-                            field.name,
-                            when(topic_filter, col(f"parsed_data.{field.name}")).otherwise(lit(None))
-                        )
-            
+            # Parse known topics into one compatible struct. Replacing the struct
+            # per topic both erased earlier rows and mixed incompatible schemas.
+            fields = {field.name: field for schema in self.schemas.values()
+                      for field in schema.fields}
+            combined_schema = StructType(list(fields.values()))
+            df_parsed = df_with_metadata.withColumn(
+                "parsed_data",
+                when(col("topic").isin(list(self.schemas)),
+                     from_json(col("raw_data"), combined_schema))
+            )
+            for name in fields:
+                df_parsed = df_parsed.withColumn(name, col(f"parsed_data.{name}"))
+
             # Add data quality flags
             df_with_quality = self._add_data_quality_flags(df_parsed)
             

@@ -19,7 +19,6 @@ import structlog
 
 from .base_streaming_job import BaseStreamingJob
 from ..transformations.data_cleaner import DataCleaner
-from ..transformations.data_enricher import DataEnricher
 from ..quality.data_quality_checker import DataQualityChecker
 
 logger = structlog.get_logger(__name__)
@@ -51,17 +50,17 @@ class SilverLayerJob(BaseStreamingJob):
         
         # Initialize transformation components
         self.data_cleaner = DataCleaner(config.get("cleaning", {}))
-        self.data_enricher = DataEnricher(config.get("enrichment", {}))
         self.quality_checker = DataQualityChecker(config.get("quality", {}))
         
         # Quality thresholds
-        self.quality_thresholds = config.get("silver_layer", {}).get("quality_thresholds", {
+        self.quality_thresholds = {
             "min_price": 0.01,
             "max_price": 100000.0,
             "min_volume": 0,
             "max_volume": 1000000000,
-            "max_spread_pct": 10.0
-        })
+            "max_spread_pct": 10.0,
+            **config.get("silver_layer", {}).get("quality_thresholds", {})
+        }
         
     def create_source_stream(self) -> DataFrame:
         """

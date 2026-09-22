@@ -293,6 +293,12 @@ class TestRestAPIConnector:
         # Mock session creation
         mock_session_instance = AsyncMock()
         mock_session.return_value = mock_session_instance
+        response = AsyncMock()
+        response.status = 200
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=response)
+        context.__aexit__ = AsyncMock(return_value=None)
+        mock_session_instance.get = Mock(return_value=context)
         
         await connector._initialize()
         

@@ -272,7 +272,9 @@ class BaseConnector(ABC):
                     await asyncio.sleep(1)
                     continue
                 
+                received_data = False
                 async for market_data in self._fetch_data():
+                    received_data = True
                     if self.is_stopped:
                         break
                     
@@ -293,7 +295,10 @@ class BaseConnector(ABC):
                         self.logger.warning("Message queue is full, dropping message")
                         self._metrics.messages_failed += 1
                         continue
-                
+
+                # Empty or finite sources must yield so stop/health tasks can run.
+                await asyncio.sleep(0 if received_data else self.config.retry_delay)
+
             except Exception as e:
                 self._handle_error("Data ingestion error", e)
                 await asyncio.sleep(self.config.retry_delay)
