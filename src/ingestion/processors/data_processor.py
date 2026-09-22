@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Dict, Any, List, Optional, Callable, Union, AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 import logging
 from collections import deque, defaultdict
@@ -306,12 +306,12 @@ class TransformationProcessor(BaseProcessor):
         """Standardize symbol format."""
         if hasattr(data, 'symbol') and data.symbol:
             # Uppercase ticker
-            data.symbol.ticker = data.symbol.ticker.upper().strip()
+            data.symbol = replace(data.symbol, ticker=data.symbol.ticker.upper().strip())
             
             # Remove common prefixes/suffixes
             ticker = data.symbol.ticker
             if ticker.endswith('.US'):
-                data.symbol.ticker = ticker[:-3]
+                data.symbol = replace(data.symbol, ticker=ticker[:-3])
         
         return data
     
@@ -393,10 +393,10 @@ class EnrichmentProcessor(BaseProcessor):
             
             # Enrich symbol with additional info
             if not data.symbol.exchange and 'exchange' in symbol_info:
-                data.symbol.exchange = symbol_info['exchange']
+                data.symbol = replace(data.symbol, exchange=symbol_info['exchange'])
             
             if not data.symbol.asset_class and 'asset_class' in symbol_info:
-                data.symbol.asset_class = symbol_info['asset_class']
+                data.symbol = replace(data.symbol, asset_class=symbol_info['asset_class'])
         
         return data
     

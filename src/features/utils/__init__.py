@@ -6,11 +6,11 @@ for the feature store system.
 """
 
 from .feature_validator import FeatureValidator, ValidationResult
-from .performance_monitor import PerformanceMonitor, PerformanceMetrics
+from .performance_monitor import PerformanceMonitor, PerformanceMetric
 
 __all__ = [
     'FeatureValidator',
     'ValidationResult',
     'PerformanceMonitor',
-    'PerformanceMetrics'
+    'PerformanceMetric'
 ]

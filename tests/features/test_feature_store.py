@@ -31,6 +31,7 @@ def sample_feature_metadata():
         schema=FeatureSchema(
             name="sma_value",
             feature_type=FeatureType.FLOAT,
+            nullable=True,  # Rolling windows have warm-up rows without a value.
             description="20-period simple moving average"
         ),
         category=IndicatorCategory.TREND,
@@ -75,8 +76,17 @@ async def mock_redis():
     """Mock Redis client."""
     mock_redis = AsyncMock()
     mock_redis.ping = AsyncMock(return_value=b'PONG')
-    mock_redis.get = AsyncMock(return_value=None)
-    mock_redis.set = AsyncMock(return_value=True)
+    values = {}
+
+    async def get_value(key):
+        return values.get(key)
+
+    async def set_value(key, value):
+        values[key] = value
+        return True
+
+    mock_redis.get = AsyncMock(wraps=get_value)
+    mock_redis.set = AsyncMock(wraps=set_value)
     mock_redis.setex = AsyncMock(return_value=True)
     mock_redis.delete = AsyncMock(return_value=1)
     mock_redis.smembers = AsyncMock(return_value=set())
@@ -191,6 +201,7 @@ class TestFeatureStore:
                 schema=FeatureSchema(
                     name="sma_value",
                     feature_type=FeatureType.FLOAT,
+                    nullable=True,
                     description="Simple moving average"
                 ),
                 category=IndicatorCategory.TREND,
@@ -334,7 +345,14 @@ class TestFeatureValidation:
         
         result = await validator.validate_data(sample_feature_metadata, feature_data)
         
-        assert result.is_valid is True or len(result.errors) == 0  # May have warnings but should be valid
+        assert result.is_valid is True
+        assert not result.errors
+
+        # The same warm-up values must fail a non-nullable schema.
+        sample_feature_metadata.schema.nullable = False
+        invalid = await validator.validate_data(sample_feature_metadata, feature_data)
+        assert invalid.is_valid is False
+        assert any("Null values" in error for error in invalid.errors)
 
 
 @pytest.mark.asyncio

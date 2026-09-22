@@ -1,7 +1,7 @@
 """Market data models and schemas for the QuantStream Analytics Platform."""
 
 from .market_data import (
-    MarketData, MarketDataMessage, Quote, Trade, Bar, OrderBook, 
+    MarketData, MarketDataMessage, Quote, Trade, Bar, OrderBook, OrderBookLevel,
     NewsItem, FundamentalData, Symbol, MarketDataMetadata,
     AssetClass, DataSource, DataType, DataQuality, IngestionMetrics
 )
@@ -17,7 +17,7 @@ from .validation import (
 
 __all__ = [
     # Core data models
-    "MarketData", "MarketDataMessage", "Quote", "Trade", "Bar", "OrderBook",
+    "MarketData", "MarketDataMessage", "Quote", "Trade", "Bar", "OrderBook", "OrderBookLevel",
     "NewsItem", "FundamentalData", "Symbol", "MarketDataMetadata",
     "AssetClass", "DataSource", "DataType", "DataQuality", "IngestionMetrics",
     

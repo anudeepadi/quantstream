@@ -35,9 +35,9 @@ class BaseStreamingJob(ABC):
         """
         self.config = config
         self.job_name = job_name
+        self.logger = logger.bind(job_name=job_name)
         self.spark = self._create_spark_session()
         self.checkpoint_location = self._get_checkpoint_location()
-        self.logger = logger.bind(job_name=job_name)
         
     def _create_spark_session(self) -> SparkSession:
         """Create and configure Spark session with Delta Lake support."""

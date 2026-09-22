@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MarketDataUpdate } from "@/lib/types/market-data";
 import type { SystemMetrics } from "@/lib/types/system";
 
@@ -20,64 +20,64 @@ export function useMarketWebSocket(
     new Map(),
   );
   const [isConnected, setIsConnected] = useState(false);
+  const subscription = JSON.stringify(symbols);
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    const ws = new WebSocket(`${WS_BASE}/ws/market-data`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setIsConnected(true);
-      retryRef.current = 0;
-      if (symbols.length > 0) {
-        ws.send(JSON.stringify({ type: "subscribe", symbols: [...symbols] }));
-      }
-    };
-
-    ws.onmessage = (evt) => {
-      try {
-        const msg = JSON.parse(evt.data);
-        if (msg.type === "market_data" && msg.symbol && msg.data) {
-          setPrices((prev) => {
-            const next = new Map(prev);
-            next.set(msg.symbol, msg.data as MarketDataUpdate);
-            return next;
-          });
-        }
-      } catch {
-        // ignore malformed messages
-      }
-    };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      const delay = Math.min(1000 * 2 ** retryRef.current, MAX_RECONNECT_DELAY);
-      retryRef.current += 1;
-      setTimeout(connect, delay);
-    };
-
-    ws.onerror = () => ws.close();
-  }, [symbols]);
-
   useEffect(() => {
+    const activeSymbols: string[] = JSON.parse(subscription);
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function connect() {
+      if (disposed) return;
+      if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+      const ws = new WebSocket(`${WS_BASE}/ws/market-data`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        retryRef.current = 0;
+        if (activeSymbols.length > 0) {
+          ws.send(JSON.stringify({ type: "subscribe", symbols: activeSymbols }));
+        }
+      };
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === "market_data" && msg.symbol && msg.data) {
+            setPrices((prev) => {
+              const next = new Map(prev);
+              next.set(msg.symbol, msg.data as MarketDataUpdate);
+              return next;
+            });
+          }
+        } catch {
+          // ignore malformed messages
+        }
+      };
+
+      ws.onclose = () => {
+        if (disposed) return;
+        setIsConnected(false);
+        const delay = Math.min(1000 * 2 ** retryRef.current, MAX_RECONNECT_DELAY);
+        retryRef.current += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
     connect();
     return () => {
+      disposed = true;
+      clearTimeout(reconnectTimer);
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [connect]);
-
-  // Re-subscribe when symbols change
-  useEffect(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && symbols.length > 0) {
-      wsRef.current.send(
-        JSON.stringify({ type: "subscribe", symbols: [...symbols] }),
-      );
-    }
-  }, [symbols]);
+  }, [subscription]);
 
   return { prices, isConnected };
 }
@@ -93,45 +93,52 @@ export function useSystemWebSocket(): UseSystemWebSocketResult {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    const ws = new WebSocket(`${WS_BASE}/ws/system-metrics`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setIsConnected(true);
-      retryRef.current = 0;
-    };
-
-    ws.onmessage = (evt) => {
-      try {
-        const msg = JSON.parse(evt.data);
-        if (msg.type === "system_metrics" && msg.data) {
-          setMetrics(msg.data as SystemMetrics);
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      const delay = Math.min(1000 * 2 ** retryRef.current, MAX_RECONNECT_DELAY);
-      retryRef.current += 1;
-      setTimeout(connect, delay);
-    };
-
-    ws.onerror = () => ws.close();
-  }, []);
-
   useEffect(() => {
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function connect() {
+      if (disposed) return;
+      if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+      const ws = new WebSocket(`${WS_BASE}/ws/system-metrics`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        retryRef.current = 0;
+      };
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === "system_metrics" && msg.data) {
+            setMetrics(msg.data as SystemMetrics);
+          }
+        } catch {
+          // ignore
+        }
+      };
+
+      ws.onclose = () => {
+        if (disposed) return;
+        setIsConnected(false);
+        const delay = Math.min(1000 * 2 ** retryRef.current, MAX_RECONNECT_DELAY);
+        retryRef.current += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
     connect();
     return () => {
+      disposed = true;
+      clearTimeout(reconnectTimer);
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [connect]);
+  }, []);
 
   return { metrics, isConnected };
 }
